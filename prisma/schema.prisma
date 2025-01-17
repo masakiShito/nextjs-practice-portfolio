@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// プロジェクトモデル
+model Project {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  tasks       Task[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// タスクモデル
+model Task {
+  id              String     @id @default(cuid())
+  title           String
+  description     String?
+  status          TaskStatus @default(TODO)
+  priority        Priority   @default(MEDIUM)
+  startDate       DateTime? // 開始予定日
+  endDate         DateTime? // 終了予定日
+  actualStartDate DateTime? // 実際の開始日
+  actualEndDate   DateTime? // 実際の終了日
+  estimatedHours  Float? // 見積時間（時間単位）
+  actualHours     Float? // 実績時間（時間単位）
+  completionNotes String? // 完了時のメモ欄
+
+  // 親タスクとの関連
+  parentTask   Task?   @relation("SubTasks", fields: [parentTaskId], references: [id])
+  parentTaskId String?
+  subTasks     Task[]  @relation("SubTasks")
+
+  // プロジェクトとの関連
+  project   Project @relation(fields: [projectId], references: [id])
+  projectId String
+
+  // カテゴリとの関連
+  category   Category? @relation(fields: [categoryId], references: [id])
+  categoryId String?
+
+  // タグとの関連（多対多）
+  tags TagsOnTasks[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([parentTaskId])
+}
+
+// カテゴリモデル
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+}
+
+// タグモデル
+model Tag {
+  id        String        @id @default(cuid())
+  name      String
+  color     String?
+  tasks     TagsOnTasks[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([name])
+}
+
+// タグとタスクの中間テーブル
+model TagsOnTasks {
+  task      Task     @relation(fields: [taskId], references: [id])
+  taskId    String
+  tag       Tag      @relation(fields: [tagId], references: [id])
+  tagId     String
+  createdAt DateTime @default(now())
+
+  @@id([taskId, tagId])
+  @@index([taskId])
+  @@index([tagId])
+}
